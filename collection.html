@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collection</title>
+    <!-- Tailwind CSS for modern, clean styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .card-scene {
+            perspective: 1200px;
+            width: 460px;
+            height: 520px;
+            flex: 0 0 auto;
+        }
+
+        .card-flip {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+            transition: transform 0.6s ease;
+        }
+
+        .card-flip.is-flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card-face {
+            position: absolute;
+            inset: 0;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+
+        .card-face-back {
+            transform: rotateY(180deg);
+            transform-style: flat;
+            isolation: isolate;
+        }
+
+        .specimen-frame,
+        .catalog-block,
+        .catalog-block *,
+        .field-label,
+        .flip-front-btn {
+            filter: none;
+        }
+
+        .field-slot {
+            margin-top: 0.375rem;
+            overflow: hidden;
+            clip-path: inset(0);
+            contain: paint;
+            isolation: isolate;
+        }
+
+        .field-value {
+            display: block;
+            line-height: 1.625;
+            filter: blur(0);
+            opacity: 1;
+            letter-spacing: 0;
+            transform: translateZ(0);
+            transition:
+                filter 15s linear,
+                opacity 15s linear,
+                letter-spacing 15s linear;
+        }
+
+        .is-flipped .field-value {
+            filter: blur(10px);
+            opacity: 0;
+            letter-spacing: 0.6em;
+        }
+
+        .field-value-last {
+            transition:
+                filter 2.5s linear 12.5s,
+                opacity 2.5s linear 12.5s,
+                letter-spacing 2.5s linear 12.5s;
+        }
+
+        .card-flip.is-resetting .field-value {
+            transition: none;
+        }
+
+        .media-panel {
+            display: none;
+            width: 100%;
+            height: 14rem;
+            overflow: auto;
+            border-radius: 0.75rem;
+            box-sizing: border-box;
+        }
+
+        .media-panel.is-on {
+            display: block;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen p-8">
+
+    <div id="card-grid" class="flex flex-wrap gap-8 justify-center"></div>
+
+    <template id="card-template">
+        <div class="card-scene">
+            <div class="card-flip">
+                <div class="card-face card-face-front w-full h-full bg-white rounded-2xl shadow-lg border border-slate-200 p-8 flex flex-col justify-between box-border">
+                    <div class="flex flex-col space-y-4">
+                        <div data-image-panel class="media-panel is-on overflow-hidden bg-slate-100">
+                            <img data-front-image alt="" class="w-full h-full object-cover">
+                        </div>
+                        <div data-sound-panel class="media-panel bg-slate-100 border-2 border-dashed border-slate-300 p-4 text-center">
+                            <p class="mb-2 text-sm font-medium text-slate-500">Sound</p>
+                            <input type="file" accept="audio/*" data-audio-input class="hidden">
+                            <button type="button" data-audio-upload class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-sm font-medium rounded-lg">
+                                Upload audio
+                            </button>
+                            <p data-audio-empty class="mt-2 text-xs text-slate-500">No sound yet. Choose a sound file for this record.</p>
+                            <p data-audio-name class="hidden mt-2 text-xs text-slate-600 truncate max-w-full"></p>
+                            <audio data-audio-player controls class="hidden w-full mt-3"></audio>
+                        </div>
+                        <div data-text-panel class="media-panel border border-slate-200 bg-slate-50 p-4">
+                            <p class="text-sm font-medium text-slate-500 mb-2">Text</p>
+                            <p data-text-body class="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap break-words"></p>
+                        </div>
+                        <div>
+                            <h2 data-front-title class="text-xl font-bold text-slate-800"></h2>
+                            <p data-front-place class="mt-1 text-sm text-slate-500"></p>
+                        </div>
+                    </div>
+                    <div>
+                        <button type="button" data-archive class="w-full py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-xl transition duration-200 shadow-sm active:scale-[0.98]">
+                            Archive this
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card-face card-face-back w-full h-full bg-[#f4f0e6] rounded-2xl shadow-lg border border-slate-200 p-6 box-border font-mono text-slate-800">
+                    <div class="specimen-frame h-full border border-slate-800 p-6 pb-14 flex flex-col">
+                        <div class="catalog-block">
+                            <p class="text-[11px] tracking-[0.2em] uppercase text-slate-600">Cat. no.</p>
+                            <p data-catalog-id class="mt-1 text-lg tracking-widest"></p>
+                        </div>
+                        <div class="mt-4 mb-6 border-t border-slate-800"></div>
+
+                        <dl class="flex-1 flex flex-col justify-between space-y-5 text-sm">
+                            <div>
+                                <dt class="field-label text-[10px] tracking-[0.18em] uppercase text-slate-500">Title</dt>
+                                <dd class="field-slot">
+                                    <span data-field-title class="field-value"></span>
+                                </dd>
+                            </div>
+                            <div>
+                                <dt class="field-label text-[10px] tracking-[0.18em] uppercase text-slate-500">Date and place</dt>
+                                <dd class="field-slot">
+                                    <span data-field-date-place class="field-value"></span>
+                                </dd>
+                            </div>
+                            <div>
+                                <dt class="field-label text-[10px] tracking-[0.18em] uppercase text-slate-500">Recorded by</dt>
+                                <dd class="field-slot">
+                                    <span data-field-recorder class="field-value"></span>
+                                </dd>
+                            </div>
+                            <div>
+                                <dt class="field-label text-[10px] tracking-[0.18em] uppercase text-slate-500">What was not captured</dt>
+                                <dd class="field-slot">
+                                    <span data-field-not-captured class="field-value field-value-last"></span>
+                                </dd>
+                            </div>
+                        </dl>
+                    </div>
+                    <button type="button" data-flip-front class="flip-front-btn font-mono text-xs text-slate-700 underline underline-offset-4 hover:text-slate-900">
+                        Filp to front
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <script>
+        function flipToBack(cardFlip) {
+            cardFlip.classList.remove('is-resetting');
+            cardFlip.classList.add('is-flipped');
+        }
+
+        function flipToFront(cardFlip) {
+            cardFlip.classList.add('is-resetting');
+            cardFlip.classList.remove('is-flipped');
+            void cardFlip.offsetWidth;
+            requestAnimationFrame(function () {
+                cardFlip.classList.remove('is-resetting');
+            });
+        }
+
+        function createCard(data) {
+            const template = document.getElementById('card-template');
+            const node = template.content.cloneNode(true);
+            const scene = node.querySelector('.card-scene');
+            const cardFlip = scene.querySelector('.card-flip');
+
+            const type = data.type || (data.catalog_id === 'REC-020' ? 'text' : (data.catalog_id === 'REC-015' ? 'sound' : 'image'));
+            const imagePanel = scene.querySelector('[data-image-panel]');
+            const soundPanel = scene.querySelector('[data-sound-panel]');
+            const textPanel = scene.querySelector('[data-text-panel]');
+
+            imagePanel.classList.remove('is-on');
+            soundPanel.classList.remove('is-on');
+            textPanel.classList.remove('is-on');
+
+            if (type === 'sound') {
+                soundPanel.classList.add('is-on');
+
+                const audioInput = scene.querySelector('[data-audio-input]');
+                const audioPlayer = scene.querySelector('[data-audio-player]');
+                const audioName = scene.querySelector('[data-audio-name]');
+                const audioEmpty = scene.querySelector('[data-audio-empty]');
+                audioPlayer.src = 'media/' + data.catalog_id + '.mp3';
+                audioPlayer.classList.remove('hidden');
+                audioName.textContent = data.catalog_id + '.mp3';
+                audioName.classList.remove('hidden');
+                audioEmpty.classList.add('hidden');
+                scene.querySelector('[data-audio-upload]').addEventListener('click', function () {
+                    audioInput.click();
+                });
+                audioInput.addEventListener('change', function () {
+                    const file = audioInput.files && audioInput.files[0];
+                    if (!file) {
+                        return;
+                    }
+                    if (audioPlayer.src) {
+                        URL.revokeObjectURL(audioPlayer.src);
+                    }
+                    audioPlayer.src = URL.createObjectURL(file);
+                    audioPlayer.classList.remove('hidden');
+                    audioName.textContent = file.name;
+                    audioName.classList.remove('hidden');
+                    audioEmpty.classList.add('hidden');
+                });
+            } else if (type === 'text') {
+                textPanel.classList.add('is-on');
+                scene.querySelector('[data-text-body]').textContent = data.text || '';
+            } else {
+                imagePanel.classList.add('is-on');
+                const frontImage = scene.querySelector('[data-front-image]');
+                frontImage.src = 'media/' + data.catalog_id + '.jpg';
+                frontImage.alt = data.title;
+            }
+
+            scene.querySelector('[data-front-title]').textContent = data.title;
+            scene.querySelector('[data-front-place]').textContent = data.place;
+            scene.querySelector('[data-catalog-id]').textContent = data.catalog_id;
+            scene.querySelector('[data-field-title]').textContent = data.title;
+            scene.querySelector('[data-field-date-place]').textContent = data.date + ' — ' + data.place;
+            scene.querySelector('[data-field-recorder]').textContent = data.recorder;
+            scene.querySelector('[data-field-not-captured]').textContent = data.not_captured;
+
+            scene.querySelector('[data-archive]').addEventListener('click', function () {
+                flipToBack(cardFlip);
+            });
+            scene.querySelector('[data-flip-front]').addEventListener('click', function () {
+                flipToFront(cardFlip);
+            });
+
+            return scene;
+        }
+
+        function normalizeRecords(data) {
+            if (Array.isArray(data)) {
+                return data;
+            }
+            if (data && Array.isArray(data.records)) {
+                return data.records;
+            }
+            return [data];
+        }
+
+        function showLoadError() {
+            document.body.className = 'min-h-screen flex items-center justify-center p-6 bg-slate-100';
+            document.body.replaceChildren();
+            const message = document.createElement('p');
+            message.className = 'font-mono text-sm text-slate-800 text-center max-w-md';
+            message.textContent = 'record.json did not load. Are you serving the folder? Open http://localhost:8000/collection.html';
+            document.body.appendChild(message);
+        }
+
+        fetch('record.json', { cache: 'no-store' })
+            .then(function (response) {
+                if (!response.ok) {
+                    throw new Error('Could not load record.json');
+                }
+                return response.json();
+            })
+            .then(function (data) {
+                const records = normalizeRecords(data);
+                if (!records.length) {
+                    throw new Error('No records');
+                }
+                const grid = document.getElementById('card-grid');
+                records.forEach(function (record) {
+                    grid.appendChild(createCard(record));
+                });
+            })
+            .catch(showLoadError);
+    </script>
+
+</body>
+</html>
